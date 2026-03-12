@@ -42,27 +42,40 @@ public class DriverProfileServiceImpl extends ServiceImpl<DriverProfileMapper, D
             return ResultVo.fail("驾驶员姓名和驾驶证号不能为空");
         }
 
+        String licenseNo = normalizeLicenseNo(driverProfile.getLicenseNo());
+        String phone = isBlank(driverProfile.getPhone()) ? "" : driverProfile.getPhone().trim();
+        if (!phone.isEmpty() && !phone.matches("^1\\d{10}$")) {
+            return ResultVo.fail("手机号格式不正确");
+        }
+
         QueryWrapper<DriverProfile> duplicateWrapper = new QueryWrapper<>();
-        duplicateWrapper.eq("license_no", driverProfile.getLicenseNo().trim());
+        duplicateWrapper.eq("license_no", licenseNo);
         if (count(duplicateWrapper) > 0) {
             return ResultVo.fail("驾驶证号已存在");
         }
 
         driverProfile.setDriverName(driverProfile.getDriverName().trim());
-        driverProfile.setLicenseNo(driverProfile.getLicenseNo().trim());
+        driverProfile.setLicenseNo(licenseNo);
+        driverProfile.setPhone(phone);
         if (!userService.isAdmin(currentUser) || driverProfile.getUserId() == null) {
             driverProfile.setUserId(currentUser.getId());
         }
         if (isBlank(driverProfile.getLicenseType())) {
             driverProfile.setLicenseType("C1");
+        } else {
+            driverProfile.setLicenseType(driverProfile.getLicenseType().trim().toUpperCase());
         }
         if (isBlank(driverProfile.getStatus())) {
             driverProfile.setStatus("1");
         }
+        if (!isBlank(driverProfile.getRemark()) && driverProfile.getRemark().trim().length() > 100) {
+            return ResultVo.fail("备注长度不能超过100");
+        }
+        driverProfile.setRemark(isBlank(driverProfile.getRemark()) ? null : driverProfile.getRemark().trim());
         driverProfile.setCreateTime(LocalDateTime.now());
         driverProfile.setUpdateTime(LocalDateTime.now());
         save(driverProfile);
-        return ResultVo.ok("新增驾驶档案成功");
+        return ResultVo.ok("驾驶档案新增成功");
     }
 
     @Override
@@ -74,20 +87,38 @@ public class DriverProfileServiceImpl extends ServiceImpl<DriverProfileMapper, D
 
         DriverProfile oldProfile = getById(driverProfile.getId());
         if (oldProfile == null) {
-            return ResultVo.fail("未找到驾驶档案");
+            return ResultVo.fail("驾驶档案不存在");
         }
         if (!userService.isAdmin(currentUser) && !currentUser.getId().equals(oldProfile.getUserId())) {
-            return ResultVo.fail("无权修改该档案");
+            return ResultVo.fail("无权限操作");
         }
 
         if (!isBlank(driverProfile.getLicenseNo())) {
+            String licenseNo = normalizeLicenseNo(driverProfile.getLicenseNo());
             QueryWrapper<DriverProfile> duplicateWrapper = new QueryWrapper<>();
-            duplicateWrapper.eq("license_no", driverProfile.getLicenseNo().trim());
+            duplicateWrapper.eq("license_no", licenseNo);
             duplicateWrapper.ne("id", driverProfile.getId());
             if (count(duplicateWrapper) > 0) {
                 return ResultVo.fail("驾驶证号已存在");
             }
-            driverProfile.setLicenseNo(driverProfile.getLicenseNo().trim());
+            driverProfile.setLicenseNo(licenseNo);
+        }
+
+        if (!isBlank(driverProfile.getPhone())) {
+            String phone = driverProfile.getPhone().trim();
+            if (!phone.matches("^1\\d{10}$")) {
+                return ResultVo.fail("手机号格式不正确");
+            }
+            driverProfile.setPhone(phone);
+        }
+        if (!isBlank(driverProfile.getLicenseType())) {
+            driverProfile.setLicenseType(driverProfile.getLicenseType().trim().toUpperCase());
+        }
+        if (!isBlank(driverProfile.getRemark()) && driverProfile.getRemark().trim().length() > 100) {
+            return ResultVo.fail("备注长度不能超过100");
+        }
+        if (!isBlank(driverProfile.getRemark())) {
+            driverProfile.setRemark(driverProfile.getRemark().trim());
         }
 
         if (!userService.isAdmin(currentUser)) {
@@ -95,7 +126,7 @@ public class DriverProfileServiceImpl extends ServiceImpl<DriverProfileMapper, D
         }
         driverProfile.setUpdateTime(LocalDateTime.now());
         updateById(driverProfile);
-        return ResultVo.ok("修改驾驶档案成功");
+        return ResultVo.ok("驾驶档案更新成功");
     }
 
     @Override
@@ -107,14 +138,14 @@ public class DriverProfileServiceImpl extends ServiceImpl<DriverProfileMapper, D
 
         DriverProfile oldProfile = getById(id);
         if (oldProfile == null) {
-            return ResultVo.fail("未找到驾驶档案");
+            return ResultVo.fail("驾驶档案不存在");
         }
         if (!userService.isAdmin(currentUser) && !currentUser.getId().equals(oldProfile.getUserId())) {
-            return ResultVo.fail("无权删除该档案");
+            return ResultVo.fail("无权限操作");
         }
 
         removeById(id);
-        return ResultVo.ok("删除驾驶档案成功");
+        return ResultVo.ok("驾驶档案删除成功");
     }
 
     private QueryWrapper<DriverProfile> buildQuery(DriverProfileDTO dto) {
@@ -140,5 +171,12 @@ public class DriverProfileServiceImpl extends ServiceImpl<DriverProfileMapper, D
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private String normalizeLicenseNo(String licenseNo) {
+        if (isBlank(licenseNo)) {
+            return "";
+        }
+        return licenseNo.trim().toUpperCase();
     }
 }

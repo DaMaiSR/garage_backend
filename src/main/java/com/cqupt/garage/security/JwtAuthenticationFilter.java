@@ -63,7 +63,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             Claims claims = jwtUtils.getTokenClaim(token);
             if (claims == null || jwtUtils.isTokenExpired(claims.getExpiration())) {
-                writeTokenError(response, "token expired");
+                writeTokenError(response, "登录已过期，请重新登录");
                 return;
             }
             Long userId = claims.get("userId", Long.class);
@@ -79,9 +79,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(authenticationToken);
             filterChain.doFilter(request, response);
         } catch (ExpiredJwtException | MalformedJwtException | SignatureException e) {
-            writeTokenError(response, e.getMessage());
+            writeTokenError(response, "登录状态无效，请重新登录");
         } catch (Exception e) {
-            writeTokenError(response, "token invalid");
+            writeTokenError(response, "登录状态无效，请重新登录");
         }
     }
 

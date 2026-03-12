@@ -53,18 +53,27 @@ public class GarageVehicleServiceImpl extends ServiceImpl<GarageVehicleMapper, G
         User currentUser = userService.getCurrentLoginUser();
         if (garageVehicle == null || isBlank(garageVehicle.getPlateNo())
                 || isBlank(garageVehicle.getOwnerName()) || isBlank(garageVehicle.getOwnerPhone())) {
-            return ResultVo.fail("车牌号、车主姓名和电话不能为空");
+            return ResultVo.fail("车牌号、车主姓名和联系电话不能为空");
+        }
+
+        String plateNo = normalizePlateNo(garageVehicle.getPlateNo());
+        String ownerPhone = garageVehicle.getOwnerPhone().trim();
+        if (plateNo.length() < 5 || plateNo.length() > 12) {
+            return ResultVo.fail("车牌号长度应为5-12位");
+        }
+        if (!ownerPhone.matches("^1\\d{10}$")) {
+            return ResultVo.fail("联系电话格式不正确");
         }
 
         QueryWrapper<GarageVehicle> duplicateWrapper = new QueryWrapper<>();
-        duplicateWrapper.eq("plate_no", garageVehicle.getPlateNo().trim());
+        duplicateWrapper.eq("plate_no", plateNo);
         if (count(duplicateWrapper) > 0) {
             return ResultVo.fail("车牌号已存在");
         }
 
-        garageVehicle.setPlateNo(garageVehicle.getPlateNo().trim());
+        garageVehicle.setPlateNo(plateNo);
         garageVehicle.setOwnerName(garageVehicle.getOwnerName().trim());
-        garageVehicle.setOwnerPhone(garageVehicle.getOwnerPhone().trim());
+        garageVehicle.setOwnerPhone(ownerPhone);
         if (!userService.isAdmin(currentUser) || garageVehicle.getUserId() == null) {
             garageVehicle.setUserId(currentUser.getId());
         }
@@ -75,12 +84,12 @@ public class GarageVehicleServiceImpl extends ServiceImpl<GarageVehicleMapper, G
             garageVehicle.setMemberType("1");
         }
         if (isBlank(garageVehicle.getStatus())) {
-            garageVehicle.setStatus("1");
+        garageVehicle.setStatus("1");
         }
         garageVehicle.setCreateTime(LocalDateTime.now());
         garageVehicle.setUpdateTime(LocalDateTime.now());
         save(garageVehicle);
-        return ResultVo.ok("新增车辆成功");
+        return ResultVo.ok("车辆新增成功");
     }
 
     @Override
@@ -92,20 +101,32 @@ public class GarageVehicleServiceImpl extends ServiceImpl<GarageVehicleMapper, G
 
         GarageVehicle oldVehicle = getById(garageVehicle.getId());
         if (oldVehicle == null) {
-            return ResultVo.fail("未找到车辆");
+            return ResultVo.fail("车辆不存在");
         }
         if (!userService.isAdmin(currentUser) && !currentUser.getId().equals(oldVehicle.getUserId())) {
-            return ResultVo.fail("无权修改该车辆");
+            return ResultVo.fail("无权限操作");
         }
 
         if (!isBlank(garageVehicle.getPlateNo())) {
+            String plateNo = normalizePlateNo(garageVehicle.getPlateNo());
+            if (plateNo.length() < 5 || plateNo.length() > 12) {
+                return ResultVo.fail("车牌号长度应为5-12位");
+            }
             QueryWrapper<GarageVehicle> duplicateWrapper = new QueryWrapper<>();
-            duplicateWrapper.eq("plate_no", garageVehicle.getPlateNo().trim());
+            duplicateWrapper.eq("plate_no", plateNo);
             duplicateWrapper.ne("id", garageVehicle.getId());
             if (count(duplicateWrapper) > 0) {
                 return ResultVo.fail("车牌号已存在");
             }
-            garageVehicle.setPlateNo(garageVehicle.getPlateNo().trim());
+            garageVehicle.setPlateNo(plateNo);
+        }
+
+        if (!isBlank(garageVehicle.getOwnerPhone())) {
+            String ownerPhone = garageVehicle.getOwnerPhone().trim();
+            if (!ownerPhone.matches("^1\\d{10}$")) {
+                return ResultVo.fail("联系电话格式不正确");
+            }
+            garageVehicle.setOwnerPhone(ownerPhone);
         }
 
         if (!userService.isAdmin(currentUser)) {
@@ -113,7 +134,7 @@ public class GarageVehicleServiceImpl extends ServiceImpl<GarageVehicleMapper, G
         }
         garageVehicle.setUpdateTime(LocalDateTime.now());
         updateById(garageVehicle);
-        return ResultVo.ok("修改车辆成功");
+        return ResultVo.ok("车辆更新成功");
     }
 
     @Override
@@ -125,14 +146,14 @@ public class GarageVehicleServiceImpl extends ServiceImpl<GarageVehicleMapper, G
 
         GarageVehicle oldVehicle = getById(id);
         if (oldVehicle == null) {
-            return ResultVo.fail("未找到车辆");
+            return ResultVo.fail("车辆不存在");
         }
         if (!userService.isAdmin(currentUser) && !currentUser.getId().equals(oldVehicle.getUserId())) {
-            return ResultVo.fail("无权删除该车辆");
+            return ResultVo.fail("无权限操作");
         }
 
         removeById(id);
-        return ResultVo.ok("删除车辆成功");
+        return ResultVo.ok("车辆删除成功");
     }
 
     private QueryWrapper<GarageVehicle> buildQuery(GarageVehicleDTO dto) {
@@ -158,5 +179,12 @@ public class GarageVehicleServiceImpl extends ServiceImpl<GarageVehicleMapper, G
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private String normalizePlateNo(String plateNo) {
+        if (isBlank(plateNo)) {
+            return "";
+        }
+        return plateNo.trim().toUpperCase();
     }
 }

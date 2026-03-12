@@ -53,7 +53,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public ResultVo<User> login(String username, String password) {
         if (isBlank(username) || isBlank(password)) {
-            return ResultVo.fail("username or password is empty");
+            return ResultVo.fail("用户名或密码不能为空");
         }
 
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
@@ -61,10 +61,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         queryWrapper.eq("is_deleted", 0);
         User user = getOne(queryWrapper, false);
         if (user == null) {
-            return ResultVo.fail("username or password invalid");
+            return ResultVo.fail("用户名或密码错误");
         }
         if (!matchesPassword(password.trim(), user.getPassword())) {
-            return ResultVo.fail("username or password invalid");
+            return ResultVo.fail("用户名或密码错误");
         }
 
         if (!isEncodedPassword(user.getPassword())) {
@@ -85,30 +85,44 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public ResultVo<Object> register(User user) {
         if (user == null || isBlank(user.getUsername()) || isBlank(user.getPassword())) {
-            return ResultVo.fail("username or password is empty");
+            return ResultVo.fail("用户名或密码不能为空");
+        }
+
+        String username = user.getUsername().trim();
+        if (username.length() < 3) {
+            return ResultVo.fail("用户名长度不能少于3位");
+        }
+        if (user.getPassword().trim().length() < 6) {
+            return ResultVo.fail("密码长度不能少于6位");
+        }
+        if (!isBlank(user.getPhone()) && !user.getPhone().trim().matches("^1\\d{10}$")) {
+            return ResultVo.fail("手机号格式不正确");
         }
 
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("username", user.getUsername().trim());
+        queryWrapper.eq("username", username);
         queryWrapper.eq("is_deleted", 0);
         if (count(queryWrapper) > 0) {
-            return ResultVo.fail("username already exists");
+            return ResultVo.fail("用户名已存在");
         }
 
-        user.setUsername(user.getUsername().trim());
+        user.setUsername(username);
         user.setPassword(passwordEncoder.encode(user.getPassword().trim()));
         user.setRole("user");
-        user.setDisplayName(isBlank(user.getDisplayName()) ? user.getUsername() : user.getDisplayName().trim());
+        user.setDisplayName(isBlank(user.getDisplayName()) ? username : user.getDisplayName().trim());
+        user.setPhone(isBlank(user.getPhone()) ? null : user.getPhone().trim());
+        user.setLicenseNo(isBlank(user.getLicenseNo()) ? null : user.getLicenseNo().trim().toUpperCase());
+        user.setLicenseType(isBlank(user.getLicenseType()) ? null : user.getLicenseType().trim().toUpperCase());
         user.setIsDeleted(0);
         user.setCreateTime(LocalDateTime.now());
         user.setUpdateTime(LocalDateTime.now());
         save(user);
-        return ResultVo.ok("register success");
+        return ResultVo.ok("注册成功");
     }
 
     @Override
     public ResultVo<Object> logout() {
-        return ResultVo.ok("logout success");
+        return ResultVo.ok("退出成功");
     }
 
     @Override
@@ -151,22 +165,33 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public ResultVo<Object> updateProfile(User user) {
         User currentUser = getCurrentLoginUser();
         if (user == null) {
-            return ResultVo.fail("payload is empty");
+            return ResultVo.fail("请求参数不能为空");
+        }
+
+        String phone = user.getPhone() == null ? null : user.getPhone().trim();
+        if (phone != null && !phone.isEmpty() && !phone.matches("^1\\d{10}$")) {
+            return ResultVo.fail("手机号格式不正确");
+        }
+        if (!isBlank(user.getPassword()) && user.getPassword().trim().length() < 6) {
+            return ResultVo.fail("密码长度不能少于6位");
         }
 
         User updateUser = new User();
         updateUser.setId(currentUser.getId());
-        if (!isBlank(user.getDisplayName())) {
-            updateUser.setDisplayName(user.getDisplayName().trim());
+        if (user.getDisplayName() != null) {
+            String displayName = user.getDisplayName().trim();
+            updateUser.setDisplayName(displayName.isEmpty() ? currentUser.getUsername() : displayName);
         }
-        if (!isBlank(user.getPhone())) {
-            updateUser.setPhone(user.getPhone().trim());
+        if (phone != null) {
+            updateUser.setPhone(phone);
         }
-        if (!isBlank(user.getLicenseNo())) {
-            updateUser.setLicenseNo(user.getLicenseNo().trim());
+        if (user.getLicenseNo() != null) {
+            String licenseNo = user.getLicenseNo().trim();
+            updateUser.setLicenseNo(licenseNo.isEmpty() ? "" : licenseNo.toUpperCase());
         }
-        if (!isBlank(user.getLicenseType())) {
-            updateUser.setLicenseType(user.getLicenseType().trim());
+        if (user.getLicenseType() != null) {
+            String licenseType = user.getLicenseType().trim();
+            updateUser.setLicenseType(licenseType.isEmpty() ? "" : licenseType.toUpperCase());
         }
         if (!isBlank(user.getPassword())) {
             updateUser.setPassword(passwordEncoder.encode(user.getPassword().trim()));
@@ -175,18 +200,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         updateById(updateUser);
 
         User dbUser = getById(currentUser.getId());
-        return ResultVo.ok(sanitizeUser(dbUser), "update success");
+        return ResultVo.ok(sanitizeUser(dbUser), "更新成功");
     }
 
     @Override
     public User getCurrentLoginUser() {
         Long userId = UserContext.getCurrentUserId();
         if (userId == null) {
-            throw new RuntimeException("token invalid");
+            throw new RuntimeException("登录状态无效");
         }
         User user = getById(userId);
         if (user == null || (user.getIsDeleted() != null && user.getIsDeleted() != 0)) {
-            throw new RuntimeException("user not exists");
+            throw new RuntimeException("用户不存在");
         }
         return user;
     }

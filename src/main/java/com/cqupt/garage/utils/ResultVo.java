@@ -48,7 +48,7 @@ public class ResultVo<T> {
     public static <T> ResultVo<T> error(Exception e) {
         ResultVo<T> result = new ResultVo<>();
         result.setFlag(false);
-        result.setMessage("system error: " + e.getMessage());
+        result.setMessage("系统异常: " + e.getMessage());
         return result;
     }
 }

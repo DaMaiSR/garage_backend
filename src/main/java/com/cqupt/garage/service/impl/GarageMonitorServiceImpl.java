@@ -42,7 +42,7 @@ public class GarageMonitorServiceImpl implements GarageMonitorService {
     public ResultVo<Object> getRealtimeData() {
         User currentUser = userService.getCurrentLoginUser();
         if (!userService.isAdmin(currentUser)) {
-            return ResultVo.fail("admin only");
+            return ResultVo.fail("仅管理员可操作");
         }
         return ResultVo.ok(buildRealtimeSnapshot());
     }

@@ -17,19 +17,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(SignatureException.class)
     @ResponseBody
     public ResultVo<Object> signatureExceptionHandler(SignatureException e) {
-        return ResultVo.fail("token verify failed", "token_error");
+        return ResultVo.fail("令牌校验失败", "token_error");
     }
 
     @ExceptionHandler(MalformedJwtException.class)
     @ResponseBody
     public ResultVo<Object> malformedJwtExceptionHandler(MalformedJwtException e) {
-        return ResultVo.fail("token parse failed", "token_error");
+        return ResultVo.fail("令牌解析失败", "token_error");
     }
 
     @ExceptionHandler(ExpiredJwtException.class)
     @ResponseBody
     public ResultVo<Object> expiredJwtExceptionHandler(ExpiredJwtException e) {
-        return ResultVo.fail("token expired", "token_error");
+        return ResultVo.fail("登录已过期，请重新登录", "token_error");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -37,7 +37,7 @@ public class GlobalExceptionHandler {
     public ResultVo<Object> methodArgumentNotValidExceptionHandler(MethodArgumentNotValidException e) {
         String msg = e.getBindingResult().getFieldErrors().stream().findFirst()
                 .map(error -> error.getField() + " " + error.getDefaultMessage())
-                .orElse("invalid request");
+                .orElse("请求参数不合法");
         return ResultVo.fail(msg);
     }
 
@@ -51,9 +51,12 @@ public class GlobalExceptionHandler {
     @ResponseBody
     public ResultVo<Object> exceptionHandler(Exception e) {
         String message = e.getMessage();
-        if (message != null && message.toLowerCase().contains("token")) {
-            return ResultVo.fail(message, "token_error");
+        if (message != null
+                && (message.toLowerCase().contains("token")
+                || message.contains("登录状态无效")
+                || message.contains("登录已过期"))) {
+            return ResultVo.fail("登录状态无效，请重新登录", "token_error");
         }
-        return ResultVo.fail(message == null ? "system error" : message);
+        return ResultVo.fail(message == null ? "系统异常" : message);
     }
 }

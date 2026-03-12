@@ -26,6 +26,19 @@ public class DateTimeUtils {
         }
     }
 
+    public static boolean isValidDateTime(String dateTime) {
+        return parseDateTime(dateTime) != null;
+    }
+
+    public static boolean isEndNotBeforeStart(String startDateTime, String endDateTime) {
+        LocalDateTime start = parseDateTime(startDateTime);
+        LocalDateTime end = parseDateTime(endDateTime);
+        if (start == null || end == null) {
+            return false;
+        }
+        return !end.isBefore(start);
+    }
+
     public static long diffMinutes(String startDateTime, String endDateTime) {
         LocalDateTime start = parseDateTime(startDateTime);
         LocalDateTime end = parseDateTime(endDateTime);

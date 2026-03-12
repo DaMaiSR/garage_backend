@@ -78,16 +78,16 @@ public class GarageSpaceServiceImpl extends ServiceImpl<GarageSpaceMapper, Garag
     public ResultVo<Object> addGarageSpace(GarageSpace garageSpace) {
         User currentUser = userService.getCurrentLoginUser();
         if (!userService.isAdmin(currentUser)) {
-            return ResultVo.fail("admin only");
+            return ResultVo.fail("仅管理员可操作");
         }
         if (garageSpace == null || isBlank(garageSpace.getAreaName()) || isBlank(garageSpace.getSpaceNo())) {
-            return ResultVo.fail("areaName and spaceNo are required");
+            return ResultVo.fail("区域和车位编号不能为空");
         }
 
         QueryWrapper<GarageSpace> duplicateWrapper = new QueryWrapper<>();
         duplicateWrapper.eq("space_no", garageSpace.getSpaceNo().trim());
         if (count(duplicateWrapper) > 0) {
-            return ResultVo.fail("spaceNo already exists");
+            return ResultVo.fail("车位编号已存在");
         }
 
         garageSpace.setAreaName(garageSpace.getAreaName().trim());
@@ -96,27 +96,27 @@ public class GarageSpaceServiceImpl extends ServiceImpl<GarageSpaceMapper, Garag
             garageSpace.setSpaceType("1");
         }
         if (isBlank(garageSpace.getStatus())) {
-            garageSpace.setStatus("0");
+        garageSpace.setStatus("0");
         }
         garageSpace.setCreateTime(LocalDateTime.now());
         garageSpace.setUpdateTime(LocalDateTime.now());
         save(garageSpace);
-        return ResultVo.ok("space added");
+        return ResultVo.ok("车位新增成功");
     }
 
     @Override
     public ResultVo<Object> updateGarageSpace(GarageSpace garageSpace) {
         User currentUser = userService.getCurrentLoginUser();
         if (!userService.isAdmin(currentUser)) {
-            return ResultVo.fail("admin only");
+            return ResultVo.fail("仅管理员可操作");
         }
         if (garageSpace == null || garageSpace.getId() == null) {
-            return ResultVo.fail("space id is required");
+            return ResultVo.fail("车位ID不能为空");
         }
 
         GarageSpace oldSpace = getById(garageSpace.getId());
         if (oldSpace == null) {
-            return ResultVo.fail("space not exists");
+            return ResultVo.fail("车位不存在");
         }
 
         if (!isBlank(garageSpace.getSpaceNo())) {
@@ -124,36 +124,36 @@ public class GarageSpaceServiceImpl extends ServiceImpl<GarageSpaceMapper, Garag
             duplicateWrapper.eq("space_no", garageSpace.getSpaceNo().trim());
             duplicateWrapper.ne("id", garageSpace.getId());
             if (count(duplicateWrapper) > 0) {
-                return ResultVo.fail("spaceNo already exists");
+                return ResultVo.fail("车位编号已存在");
             }
             garageSpace.setSpaceNo(garageSpace.getSpaceNo().trim());
         }
 
         garageSpace.setUpdateTime(LocalDateTime.now());
         updateById(garageSpace);
-        return ResultVo.ok("space updated");
+        return ResultVo.ok("车位更新成功");
     }
 
     @Override
     public ResultVo<Object> delGarageSpace(Long id) {
         User currentUser = userService.getCurrentLoginUser();
         if (!userService.isAdmin(currentUser)) {
-            return ResultVo.fail("admin only");
+            return ResultVo.fail("仅管理员可操作");
         }
         if (id == null) {
-            return ResultVo.fail("space id is required");
+            return ResultVo.fail("车位ID不能为空");
         }
 
         GarageSpace garageSpace = getById(id);
         if (garageSpace == null) {
-            return ResultVo.fail("space not exists");
+            return ResultVo.fail("车位不存在");
         }
         if ("1".equals(garageSpace.getStatus()) || "4".equals(garageSpace.getStatus())) {
-            return ResultVo.fail("occupied or reserved space can not be deleted");
+            return ResultVo.fail("占用或预约中的车位不可删除");
         }
 
         removeById(id);
-        return ResultVo.ok("space deleted");
+        return ResultVo.ok("车位删除成功");
     }
 
     private QueryWrapper<GarageSpace> buildPageQuery(GarageSpaceDTO dto) {
