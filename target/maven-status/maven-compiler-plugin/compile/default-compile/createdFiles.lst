@@ -48,6 +48,7 @@ com\cqupt\garage\controller\GarageMonitorController.class
 com\cqupt\garage\handler\GlobalExceptionHandler.class
 com\cqupt\garage\utils\DateTimeUtils.class
 com\cqupt\garage\controller\UserController.class
+com\cqupt\garage\service\impl\CheckoutPaymentServiceImpl$1.class
 com\cqupt\garage\controller\DriverProfileController.class
 com\cqupt\garage\mapper\GarageSpaceMapper.class
 com\cqupt\garage\mapper\GarageRecordMapper.class

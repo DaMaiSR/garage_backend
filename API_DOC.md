@@ -11,6 +11,7 @@
 
 鉴权头：
 - `token: <JWT>`
+- 开放集成接口额外使用：`X-Integration-Key: <integration.access-key>`
 
 ## 1. 用户
 - `GET /user/login?username=&password=`
@@ -48,8 +49,17 @@
 - `GET /garageReservation/listGarageReservationPage`
 - `POST /garageReservation/createReservation`
 - `POST /garageReservation/cancelReservation`
-- `POST /garageReservation/checkInReservation`
+- `POST /garageReservation/checkInReservation`（admin）
 
-## 7. 实时监控
+## 7. 支付编排（扩展）
+- `POST /payment/createCheckoutOrder`
+- `GET /payment/queryCheckoutOrder?orderNo=`
+- `POST /payment/completeCheckout`
+
+## 8. 开放集成（扩展）
+- `POST /open/integration/plate/analyze`
+- `POST /open/integration/payment/mock/paid`
+
+## 9. 实时监控
 - `GET /garageMonitor/realtime`（admin）
 - `WS /ws/realtime?token=JWT`（admin）

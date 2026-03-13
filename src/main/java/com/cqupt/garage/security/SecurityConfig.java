@@ -35,7 +35,7 @@ public class SecurityConfig {
                 .and()
                 .authorizeRequests()
                 .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .antMatchers("/user/login", "/user/register", "/error", "/ws/realtime/**").permitAll()
+                .antMatchers("/user/login", "/user/register", "/error", "/ws/realtime/**", "/open/integration/**").permitAll()
                 .anyRequest().authenticated()
                 .and()
                 .exceptionHandling()
