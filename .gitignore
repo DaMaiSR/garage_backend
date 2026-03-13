@@ -1,0 +1,46 @@
+# =========================
+# garage_backend .gitignore
+# =========================
+
+# Maven / Java build output
+/target/
+*.class
+
+# Logs / crash dumps
+logs/
+*.log
+*.out
+*.err
+hs_err_pid*
+replay_pid*
+startup.log
+
+# IDE / Editor
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Local runtime data
+/garage-data/
+
+# Local environment config
+.env
+.env.*
+application-local.yml
+application-local.yaml
+src/main/resources/application-local.yml
+src/main/resources/application-local.yaml
+
+# Temp / swap
+*.tmp
+*.swp
+*.swo
