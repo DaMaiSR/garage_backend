@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -58,14 +59,14 @@ public class PlateRecognitionServiceImpl implements PlateRecognitionService {
     }
 
     private ResultVo<Object> analyzeIn(String plateNo, String eventTime, String cameraCode, String preferSpaceNo) {
-        QueryWrapper<GarageVehicle> vehicleQuery = new QueryWrapper<>();
-        vehicleQuery.eq("plate_no", plateNo);
-        GarageVehicle vehicle = garageVehicleMapper.selectOne(vehicleQuery);
+        GarageVehicle vehicle = findVehicleByPlateFlexible(plateNo);
         if (vehicle == null) {
             Map<String, Object> data = buildBaseData(plateNo, "IN", eventTime, cameraCode);
             data.put("nextStep", "REGISTER_VEHICLE");
             return ResultVo.fail("未匹配到已登记车辆", data);
         }
+        String businessPlateNo = canonicalPlateNo(vehicle.getPlateNo(), plateNo);
+
         if ("2".equals(vehicle.getStatus())) {
             return ResultVo.fail("该车辆已停用");
         }
@@ -77,17 +78,12 @@ public class PlateRecognitionServiceImpl implements PlateRecognitionService {
             return ResultVo.fail("车主未维护有效驾驶档案");
         }
 
-        QueryWrapper<GarageRecord> activeRecordQuery = new QueryWrapper<>();
-        activeRecordQuery.eq("plate_no", plateNo).eq("record_status", "0");
-        if (garageRecordMapper.selectCount(activeRecordQuery) > 0) {
+        if (findActiveRecordByPlateFlexible(businessPlateNo) != null) {
             return ResultVo.fail("该车辆当前已在库");
         }
 
-        QueryWrapper<GarageReservation> reservationQuery = new QueryWrapper<>();
-        reservationQuery.eq("plate_no", plateNo).eq("reservation_status", "0").orderByDesc("id").last("limit 1");
-        GarageReservation activeReservation = garageReservationMapper.selectOne(reservationQuery);
-
-        Map<String, Object> data = buildBaseData(plateNo, "IN", eventTime, cameraCode);
+        GarageReservation activeReservation = findActiveReservationByPlateFlexible(businessPlateNo);
+        Map<String, Object> data = buildBaseData(businessPlateNo, "IN", eventTime, cameraCode);
         data.put("vehicleId", vehicle.getId());
         data.put("userId", vehicle.getUserId());
         if (activeReservation != null) {
@@ -111,9 +107,7 @@ public class PlateRecognitionServiceImpl implements PlateRecognitionService {
     }
 
     private ResultVo<Object> analyzeOut(String plateNo, String eventTime, String cameraCode) {
-        QueryWrapper<GarageRecord> recordQuery = new QueryWrapper<>();
-        recordQuery.eq("plate_no", plateNo).eq("record_status", "0").orderByDesc("id").last("limit 1");
-        GarageRecord activeRecord = garageRecordMapper.selectOne(recordQuery);
+        GarageRecord activeRecord = findActiveRecordByPlateFlexible(plateNo);
         if (activeRecord == null) {
             Map<String, Object> data = buildBaseData(plateNo, "OUT", eventTime, cameraCode);
             data.put("nextStep", "NO_ACTIVE_RECORD");
@@ -122,7 +116,7 @@ public class PlateRecognitionServiceImpl implements PlateRecognitionService {
 
         long parkingMinutes = DateTimeUtils.diffMinutes(activeRecord.getInTime(), eventTime);
         String estimatedFee = DateTimeUtils.calcFeeByMinutes(parkingMinutes);
-        Map<String, Object> data = buildBaseData(plateNo, "OUT", eventTime, cameraCode);
+        Map<String, Object> data = buildBaseData(canonicalPlateNo(activeRecord.getPlateNo(), plateNo), "OUT", eventTime, cameraCode);
         data.put("mode", "OUT_NEED_PAYMENT");
         data.put("recordId", activeRecord.getId());
         data.put("spaceNo", activeRecord.getSpaceNo());
@@ -147,6 +141,100 @@ public class PlateRecognitionServiceImpl implements PlateRecognitionService {
         return garageSpaceMapper.selectOne(freeQuery);
     }
 
+    private GarageVehicle findVehicleByPlateFlexible(String plateNo) {
+        if (isBlank(plateNo)) {
+            return null;
+        }
+        String raw = plateNo.trim().toUpperCase();
+        QueryWrapper<GarageVehicle> exactQuery = new QueryWrapper<>();
+        exactQuery.eq("plate_no", raw).orderByDesc("id").last("limit 1");
+        GarageVehicle exactVehicle = garageVehicleMapper.selectOne(exactQuery);
+        if (exactVehicle != null) {
+            return exactVehicle;
+        }
+
+        String normalizedTarget = normalizePlateNo(raw);
+        if (isBlank(normalizedTarget)) {
+            return null;
+        }
+        List<GarageVehicle> vehicles = garageVehicleMapper.selectList(new QueryWrapper<GarageVehicle>().orderByDesc("id"));
+        for (GarageVehicle item : vehicles) {
+            if (item == null || isBlank(item.getPlateNo())) {
+                continue;
+            }
+            if (normalizedTarget.equals(normalizePlateNo(item.getPlateNo()))) {
+                return item;
+            }
+        }
+        return null;
+    }
+
+    private GarageRecord findActiveRecordByPlateFlexible(String plateNo) {
+        if (isBlank(plateNo)) {
+            return null;
+        }
+        String raw = plateNo.trim().toUpperCase();
+        QueryWrapper<GarageRecord> exactQuery = new QueryWrapper<>();
+        exactQuery.eq("plate_no", raw).eq("record_status", "0").orderByDesc("id").last("limit 1");
+        GarageRecord exactRecord = garageRecordMapper.selectOne(exactQuery);
+        if (exactRecord != null) {
+            return exactRecord;
+        }
+
+        String normalizedTarget = normalizePlateNo(raw);
+        List<GarageRecord> activeRecords = garageRecordMapper.selectList(
+                new QueryWrapper<GarageRecord>().eq("record_status", "0").orderByDesc("id"));
+        for (GarageRecord item : activeRecords) {
+            if (item == null || isBlank(item.getPlateNo())) {
+                continue;
+            }
+            if (normalizedTarget.equals(normalizePlateNo(item.getPlateNo()))) {
+                return item;
+            }
+        }
+        return null;
+    }
+
+    private GarageReservation findActiveReservationByPlateFlexible(String plateNo) {
+        if (isBlank(plateNo)) {
+            return null;
+        }
+        String raw = plateNo.trim().toUpperCase();
+        QueryWrapper<GarageReservation> exactQuery = new QueryWrapper<>();
+        exactQuery.eq("plate_no", raw).eq("reservation_status", "0").orderByDesc("id").last("limit 1");
+        GarageReservation exactReservation = garageReservationMapper.selectOne(exactQuery);
+        if (exactReservation != null) {
+            return exactReservation;
+        }
+
+        String normalizedTarget = normalizePlateNo(raw);
+        List<GarageReservation> activeReservations = garageReservationMapper.selectList(
+                new QueryWrapper<GarageReservation>().eq("reservation_status", "0").orderByDesc("id"));
+        for (GarageReservation item : activeReservations) {
+            if (item == null || isBlank(item.getPlateNo())) {
+                continue;
+            }
+            if (normalizedTarget.equals(normalizePlateNo(item.getPlateNo()))) {
+                return item;
+            }
+        }
+        return null;
+    }
+
+    private String canonicalPlateNo(String primary, String fallback) {
+        if (!isBlank(primary)) {
+            return primary.trim().toUpperCase();
+        }
+        return isBlank(fallback) ? "" : fallback.trim().toUpperCase();
+    }
+
+    private String normalizePlateNo(String plateNo) {
+        if (isBlank(plateNo)) {
+            return "";
+        }
+        return plateNo.trim().toUpperCase().replaceAll("[\\s\\-·•・\\.。_]", "");
+    }
+
     private Map<String, Object> buildBaseData(String plateNo, String action, String eventTime, String cameraCode) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("plateNo", plateNo);
@@ -164,10 +252,11 @@ public class PlateRecognitionServiceImpl implements PlateRecognitionService {
         if ("IN".equals(normalized) || "OUT".equals(normalized)) {
             return normalized;
         }
-        if ("进入".equals(action.trim()) || "入场".equals(action.trim()) || "入库".equals(action.trim())) {
+        String raw = action.trim();
+        if ("进入".equals(raw) || "入场".equals(raw) || "入库".equals(raw)) {
             return "IN";
         }
-        if ("离开".equals(action.trim()) || "出场".equals(action.trim()) || "出库".equals(action.trim())) {
+        if ("离开".equals(raw) || "出场".equals(raw) || "出库".equals(raw)) {
             return "OUT";
         }
         return "";

@@ -233,7 +233,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         menus.add(menu("1", "车库管理", "Van",
                 child("车位管理", "/garage/spaceManage", "SetUp"),
                 child("预约管理", "/garage/reservationManage", "Calendar"),
-                child("实时监控", "/garage/realtimeMonitor", "Monitor")));
+                child("实时监控", "/garage/realtimeMonitor", "Monitor"),
+                child("车牌识别", "/garage/plateRecognition", "Camera")));
         menus.add(menu("2", "档案管理", "User",
                 child("驾驶档案管理", "/garage/driverProfile", "Tickets"),
                 child("车辆信息管理", "/garage/vehicleManage", "Management")));
