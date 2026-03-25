@@ -20,7 +20,6 @@ import com.cqupt.garage.service.UserService;
 import com.cqupt.garage.utils.DateTimeUtils;
 import com.cqupt.garage.utils.ResultVo;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -55,9 +54,6 @@ public class PlateRecognitionWorkflowServiceImpl implements PlateRecognitionWork
 
     @Autowired
     private GarageVehicleMapper garageVehicleMapper;
-
-    @Value("${integration.plate.auto-out-pay-method:WECHAT}")
-    private String autoOutPayMethod;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -138,28 +134,42 @@ public class PlateRecognitionWorkflowServiceImpl implements PlateRecognitionWork
 
     private ResultVo<Object> processOut(String eventTime, String plateNo, Object analysisData, Map<String, Object> payload) {
         Long recordId = extractLong(analysisData, "recordId", "id");
+        GarageRecord activeRecord = null;
         if (recordId == null) {
             QueryWrapper<GarageRecord> recordQuery = new QueryWrapper<>();
             recordQuery.eq("plate_no", plateNo).eq("record_status", "0").orderByDesc("id").last("limit 1");
-            GarageRecord record = garageRecordMapper.selectOne(recordQuery);
-            if (record != null) {
-                recordId = record.getId();
-            }
+            activeRecord = garageRecordMapper.selectOne(recordQuery);
+            recordId = activeRecord == null ? null : activeRecord.getId();
         }
         if (recordId == null) {
             return ResultVo.fail("识别成功但未找到在库记录", payload);
+        }
+        if (activeRecord == null) {
+            activeRecord = garageRecordService.getById(recordId);
+        }
+        if (activeRecord == null) {
+            return ResultVo.fail("识别成功但未找到在库记录", payload);
+        }
+        if (!"1".equals(activeRecord.getPayStatus())) {
+            Map<String, Object> operationData = new LinkedHashMap<>();
+            operationData.put("flag", false);
+            operationData.put("message", "该车辆未支付，请先完成支付后再扫码出库");
+            operationData.put("action", "OUT");
+            operationData.put("recordId", recordId);
+            operationData.put("payStatus", activeRecord.getPayStatus());
+            payload.put("operation", operationData);
+            return ResultVo.fail("该车辆未支付，请先完成支付后再扫码出库", payload);
         }
 
         GarageRecord outCommand = new GarageRecord();
         outCommand.setId(recordId);
         outCommand.setOutTime(eventTime);
-        outCommand.setPayMethod(normalizeAutoPayMethod(autoOutPayMethod));
         ResultVo<Object> operateResult = garageRecordService.updateGarageOutRecord(outCommand);
 
         Map<String, Object> operationData = buildResultSummary(operateResult);
         operationData.put("action", "OUT");
         operationData.put("recordId", recordId);
-        operationData.put("payMethod", outCommand.getPayMethod());
+        operationData.put("payStatus", activeRecord.getPayStatus());
         payload.put("operation", operationData);
         if (!operateResult.isFlag()) {
             return ResultVo.fail(operateResult.getMessage(), payload);
@@ -273,17 +283,6 @@ public class PlateRecognitionWorkflowServiceImpl implements PlateRecognitionWork
             return "OUT";
         }
         return "IN";
-    }
-
-    private String normalizeAutoPayMethod(String payMethod) {
-        if (isBlank(payMethod)) {
-            return "WECHAT";
-        }
-        String method = payMethod.trim().toUpperCase();
-        if ("WECHAT".equals(method) || "ALIPAY".equals(method) || "CASH".equals(method) || "FREE".equals(method)) {
-            return method;
-        }
-        return "WECHAT";
     }
 
     private String resolveOperationPlateNo(String fallbackPlateNo, Object analysisData) {

@@ -29,6 +29,11 @@ public class GarageRecordController {
         return garageRecordService.addGarageInRecord(garageRecord);
     }
 
+    @PostMapping("/payGarageOutRecord")
+    public ResultVo<Object> payGarageOutRecord(GarageRecord garageRecord) {
+        return garageRecordService.payGarageOutRecord(garageRecord);
+    }
+
     @PostMapping("/updateGarageOutRecord")
     public ResultVo<Object> updateGarageOutRecord(GarageRecord garageRecord) {
         return garageRecordService.updateGarageOutRecord(garageRecord);

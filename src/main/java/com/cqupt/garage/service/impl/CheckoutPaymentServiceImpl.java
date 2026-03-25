@@ -147,18 +147,18 @@ public class CheckoutPaymentServiceImpl implements CheckoutPaymentService {
             return ResultVo.fail("订单尚未支付");
         }
 
-        GarageRecord outCommand = new GarageRecord();
-        outCommand.setId(order.recordId);
-        outCommand.setOutTime(isBlank(outTime) ? DateTimeUtils.nowDateTime() : outTime.trim());
-        outCommand.setPayMethod(order.payMethod);
-        ResultVo<Object> checkoutResult = garageRecordService.updateGarageOutRecord(outCommand);
-        if (!checkoutResult.isFlag()) {
-            return checkoutResult;
+        GarageRecord payCommand = new GarageRecord();
+        payCommand.setId(order.recordId);
+        payCommand.setOutTime(isBlank(outTime) ? DateTimeUtils.nowDateTime() : outTime.trim());
+        payCommand.setPayMethod(order.payMethod);
+        ResultVo<Object> payResult = garageRecordService.payGarageOutRecord(payCommand);
+        if (!payResult.isFlag() && (payResult.getMessage() == null || !payResult.getMessage().contains("已支付"))) {
+            return payResult;
         }
 
         order.orderStatus = STATUS_DONE;
         order.completedTime = DateTimeUtils.nowDateTime();
-        return ResultVo.ok(toView(order), "订单完成并已出库");
+        return ResultVo.ok(toView(order), "订单支付完成，请前往出口扫码出库");
     }
 
     private String buildOrderNo() {

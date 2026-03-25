@@ -123,6 +123,12 @@ public class PlateRecognitionServiceImpl implements PlateRecognitionService {
         data.put("inTime", activeRecord.getInTime());
         data.put("estimatedParkingMinutes", String.valueOf(parkingMinutes));
         data.put("estimatedFee", estimatedFee);
+        data.put("payStatus", activeRecord.getPayStatus());
+        if ("1".equals(activeRecord.getPayStatus())) {
+            data.put("mode", "OUT_READY_CHECKOUT");
+            data.put("nextStep", "AUTO_CHECK_OUT");
+            return ResultVo.ok(data, "识别成功，车辆已支付，可直接扫码出库");
+        }
         data.put("nextStep", "CREATE_CHECKOUT_ORDER");
         return ResultVo.ok(data, "识别成功，建议先完成支付再出库");
     }

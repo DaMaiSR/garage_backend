@@ -11,5 +11,7 @@ public interface GarageRecordService extends IService<GarageRecord> {
 
     ResultVo<Object> addGarageInRecord(GarageRecord garageRecord);
 
+    ResultVo<Object> payGarageOutRecord(GarageRecord garageRecord);
+
     ResultVo<Object> updateGarageOutRecord(GarageRecord garageRecord);
 }
