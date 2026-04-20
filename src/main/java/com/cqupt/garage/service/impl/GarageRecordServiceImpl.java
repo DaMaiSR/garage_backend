@@ -15,6 +15,7 @@ import com.cqupt.garage.pojo.GarageSpace;
 import com.cqupt.garage.pojo.GarageVehicle;
 import com.cqupt.garage.pojo.User;
 import com.cqupt.garage.service.GarageRecordService;
+import com.cqupt.garage.service.FeeRuleService;
 import com.cqupt.garage.service.UserService;
 import com.cqupt.garage.utils.DateTimeUtils;
 import com.cqupt.garage.utils.ResultVo;
@@ -43,6 +44,9 @@ public class GarageRecordServiceImpl extends ServiceImpl<GarageRecordMapper, Gar
 
     @Autowired
     private DriverProfileMapper driverProfileMapper;
+
+    @Autowired
+    private FeeRuleService feeRuleService;
 
     @Override
     public ResultVo<Object> listGarageRecordPage(GarageRecordDTO dto) {
@@ -202,7 +206,7 @@ public class GarageRecordServiceImpl extends ServiceImpl<GarageRecordMapper, Gar
             return ResultVo.fail("支付时间不能早于入场时间");
         }
         long parkingMinutes = DateTimeUtils.diffMinutes(dbRecord.getInTime(), payTime);
-        String totalFee = DateTimeUtils.calcFeeByMinutes(parkingMinutes);
+        String totalFee = feeRuleService.calcFeeByMinutes(parkingMinutes);
 
         String payMethod = normalizePayMethod(garageRecord.getPayMethod());
         if (!isSupportedPayMethod(payMethod)) {
@@ -257,7 +261,7 @@ public class GarageRecordServiceImpl extends ServiceImpl<GarageRecordMapper, Gar
             dbRecord.setParkingMinutes(String.valueOf(parkingMinutes));
         }
         if (isBlank(dbRecord.getTotalFee())) {
-            dbRecord.setTotalFee(DateTimeUtils.calcFeeByMinutes(parkingMinutes));
+            dbRecord.setTotalFee(feeRuleService.calcFeeByMinutes(parkingMinutes));
         }
         dbRecord.setRecordStatus("1");
         dbRecord.setUpdateTime(LocalDateTime.now());

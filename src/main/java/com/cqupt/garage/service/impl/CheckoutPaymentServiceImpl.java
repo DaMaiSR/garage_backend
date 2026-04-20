@@ -4,6 +4,7 @@ import com.cqupt.garage.integration.payment.PaymentGateway;
 import com.cqupt.garage.integration.payment.PaymentGatewayRouter;
 import com.cqupt.garage.pojo.GarageRecord;
 import com.cqupt.garage.service.CheckoutPaymentService;
+import com.cqupt.garage.service.FeeRuleService;
 import com.cqupt.garage.service.GarageRecordService;
 import com.cqupt.garage.utils.DateTimeUtils;
 import com.cqupt.garage.utils.ResultVo;
@@ -25,15 +26,18 @@ public class CheckoutPaymentServiceImpl implements CheckoutPaymentService {
 
     private final GarageRecordService garageRecordService;
     private final PaymentGatewayRouter paymentGatewayRouter;
+    private final FeeRuleService feeRuleService;
     private final ConcurrentMap<String, CheckoutPaymentOrder> orderStore = new ConcurrentHashMap<>();
 
     @Value("${integration.payment.order-expire-minutes:15}")
     private int orderExpireMinutes;
 
     public CheckoutPaymentServiceImpl(GarageRecordService garageRecordService,
-                                      PaymentGatewayRouter paymentGatewayRouter) {
+                                      PaymentGatewayRouter paymentGatewayRouter,
+                                      FeeRuleService feeRuleService) {
         this.garageRecordService = garageRecordService;
         this.paymentGatewayRouter = paymentGatewayRouter;
+        this.feeRuleService = feeRuleService;
     }
 
     @Override
@@ -57,7 +61,7 @@ public class CheckoutPaymentServiceImpl implements CheckoutPaymentService {
             return ResultVo.fail("支付方式不支持");
         }
         long estimatedMinutes = DateTimeUtils.diffMinutes(record.getInTime(), DateTimeUtils.nowDateTime());
-        String estimatedFee = DateTimeUtils.calcFeeByMinutes(estimatedMinutes);
+        String estimatedFee = feeRuleService.calcFeeByMinutes(estimatedMinutes);
         if (!"0".equals(estimatedFee) && "FREE".equals(normalizedPayMethod)) {
             return ResultVo.fail("有费用时不能使用免单");
         }

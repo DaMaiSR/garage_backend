@@ -12,6 +12,7 @@ import com.cqupt.garage.pojo.GarageRecord;
 import com.cqupt.garage.pojo.GarageReservation;
 import com.cqupt.garage.pojo.GarageSpace;
 import com.cqupt.garage.pojo.GarageVehicle;
+import com.cqupt.garage.service.FeeRuleService;
 import com.cqupt.garage.service.PlateRecognitionService;
 import com.cqupt.garage.utils.DateTimeUtils;
 import com.cqupt.garage.utils.ResultVo;
@@ -39,6 +40,9 @@ public class PlateRecognitionServiceImpl implements PlateRecognitionService {
 
     @Autowired
     private GarageSpaceMapper garageSpaceMapper;
+
+    @Autowired
+    private FeeRuleService feeRuleService;
 
     @Override
     public ResultVo<Object> analyzePlateEvent(PlateRecognitionEventDTO dto) {
@@ -115,7 +119,7 @@ public class PlateRecognitionServiceImpl implements PlateRecognitionService {
         }
 
         long parkingMinutes = DateTimeUtils.diffMinutes(activeRecord.getInTime(), eventTime);
-        String estimatedFee = DateTimeUtils.calcFeeByMinutes(parkingMinutes);
+        String estimatedFee = feeRuleService.calcFeeByMinutes(parkingMinutes);
         Map<String, Object> data = buildBaseData(canonicalPlateNo(activeRecord.getPlateNo(), plateNo), "OUT", eventTime, cameraCode);
         data.put("mode", "OUT_NEED_PAYMENT");
         data.put("recordId", activeRecord.getId());

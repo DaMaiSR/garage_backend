@@ -3,6 +3,7 @@ DROP TABLE IF EXISTS garage_reservation;
 DROP TABLE IF EXISTS driver_profile;
 DROP TABLE IF EXISTS garage_vehicle;
 DROP TABLE IF EXISTS garage_space;
+DROP TABLE IF EXISTS fee_rule_config;
 DROP TABLE IF EXISTS garage_user;
 
 CREATE TABLE garage_user (
@@ -109,4 +110,16 @@ CREATE TABLE garage_record (
   INDEX idx_record_space_no (space_no),
   INDEX idx_record_status (record_status),
   INDEX idx_record_in_time (in_time)
+);
+
+CREATE TABLE fee_rule_config (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  free_minutes INT DEFAULT 0,
+  hourly_rate DECIMAL(10,2) NOT NULL DEFAULT 5.00,
+  cap_amount DECIMAL(10,2) DEFAULT NULL,
+  status VARCHAR(16) DEFAULT '1',
+  remark VARCHAR(255),
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_fee_rule_status (status)
 );

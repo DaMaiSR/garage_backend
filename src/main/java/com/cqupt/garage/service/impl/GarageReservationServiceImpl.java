@@ -60,8 +60,11 @@ public class GarageReservationServiceImpl extends ServiceImpl<GarageReservationM
         }
         if (!userService.isAdmin(currentUser)) {
             queryWrapper.eq("user_id", currentUser.getId());
+            queryWrapper.orderByDesc("id");
+        } else {
+            // Admin reservation management should surface pending records first.
+            queryWrapper.orderByAsc("reservation_status").orderByDesc("id");
         }
-        queryWrapper.orderByDesc("id");
         Page<GarageReservation> page = new Page<>(resolveCurrentPage(dto == null ? null : dto.getPageSize()), DEFAULT_PAGE_SIZE);
         page(page, queryWrapper);
         return ResultVo.ok(page);
