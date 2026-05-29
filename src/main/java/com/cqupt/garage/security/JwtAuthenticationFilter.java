@@ -30,9 +30,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final List<String> WHITE_LIST = java.util.Arrays.asList(
             "/user/login",
             "/user/register",
-            "/open/integration/**",
             "/error",
             "/favicon.ico",
+            "/swagger-ui.html",
+            "/swagger-ui/**",
+            "/v3/api-docs",
+            "/v3/api-docs/**",
+            "/v3/api-docs.yaml",
+            "/swagger-resources/**",
+            "/webjars/**",
             "/ws/realtime/**"
     );
 

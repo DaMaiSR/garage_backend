@@ -9,6 +9,7 @@ import com.cqupt.garage.mapper.GarageRecordMapper;
 import com.cqupt.garage.mapper.GarageReservationMapper;
 import com.cqupt.garage.mapper.GarageSpaceMapper;
 import com.cqupt.garage.mapper.GarageVehicleMapper;
+import com.cqupt.garage.mapper.UserMapper;
 import com.cqupt.garage.pojo.GarageRecord;
 import com.cqupt.garage.pojo.GarageReservation;
 import com.cqupt.garage.pojo.GarageSpace;
@@ -24,11 +25,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 public class GarageRecordServiceImpl extends ServiceImpl<GarageRecordMapper, GarageRecord> implements GarageRecordService {
 
     private static final int DEFAULT_PAGE_SIZE = 6;
+    private static final String EXTERNAL_VEHICLE_USERNAME = "sys_external_vehicle";
+    private static final String EXTERNAL_VEHICLE_DISPLAY_NAME = "External Vehicle";
 
     @Autowired
     private UserService userService;
@@ -44,6 +48,9 @@ public class GarageRecordServiceImpl extends ServiceImpl<GarageRecordMapper, Gar
 
     @Autowired
     private DriverProfileMapper driverProfileMapper;
+
+    @Autowired
+    private UserMapper userMapper;
 
     @Autowired
     private FeeRuleService feeRuleService;
@@ -96,6 +103,17 @@ public class GarageRecordServiceImpl extends ServiceImpl<GarageRecordMapper, Gar
         QueryWrapper<GarageVehicle> vehicleQuery = new QueryWrapper<>();
         vehicleQuery.eq("plate_no", plateNo);
         GarageVehicle garageVehicle = garageVehicleMapper.selectOne(vehicleQuery);
+        boolean skipDriverProfileCheck = false;
+        if (garageVehicle == null) {
+            if (!userService.isAdmin(currentUser)) {
+                return ResultVo.fail("未登记车辆仅管理员可操作");
+            }
+            GarageVehicle externalVehicle = new GarageVehicle();
+            externalVehicle.setUserId(resolveExternalVehicleUserId());
+            externalVehicle.setStatus("1");
+            garageVehicle = externalVehicle;
+            skipDriverProfileCheck = true;
+        }
         if (garageVehicle == null) {
             return ResultVo.fail("车辆不存在");
         }
@@ -105,7 +123,7 @@ public class GarageRecordServiceImpl extends ServiceImpl<GarageRecordMapper, Gar
         if ("2".equals(garageVehicle.getStatus())) {
             return ResultVo.fail("车辆已停用");
         }
-        if (!hasActiveDriverProfile(garageVehicle.getUserId())) {
+        if (!skipDriverProfileCheck && !hasActiveDriverProfile(garageVehicle.getUserId())) {
             return ResultVo.fail("请先完善驾驶档案后再入库");
         }
 
@@ -287,6 +305,41 @@ public class GarageRecordServiceImpl extends ServiceImpl<GarageRecordMapper, Gar
             return 1L;
         }
         return pageSize;
+    }
+
+    private Long resolveExternalVehicleUserId() {
+        QueryWrapper<User> userQuery = new QueryWrapper<>();
+        userQuery.eq("username", EXTERNAL_VEHICLE_USERNAME).orderByDesc("id").last("limit 1");
+        User existing = userMapper.selectOne(userQuery);
+        if (existing != null && existing.getId() != null) {
+            if (existing.getIsDeleted() != null && existing.getIsDeleted() != 0) {
+                User revive = new User();
+                revive.setId(existing.getId());
+                revive.setIsDeleted(0);
+                revive.setUpdateTime(LocalDateTime.now());
+                userMapper.updateById(revive);
+            }
+            return existing.getId();
+        }
+
+        User externalUser = new User();
+        externalUser.setUsername(EXTERNAL_VEHICLE_USERNAME);
+        externalUser.setPassword("NO_LOGIN_" + UUID.randomUUID());
+        externalUser.setRole("user");
+        externalUser.setDisplayName(EXTERNAL_VEHICLE_DISPLAY_NAME);
+        externalUser.setIsDeleted(0);
+        externalUser.setCreateTime(LocalDateTime.now());
+        externalUser.setUpdateTime(LocalDateTime.now());
+        try {
+            userMapper.insert(externalUser);
+            return externalUser.getId();
+        } catch (Exception ex) {
+            User reload = userMapper.selectOne(userQuery);
+            if (reload != null && reload.getId() != null) {
+                return reload.getId();
+            }
+            throw ex;
+        }
     }
 
     private boolean hasActiveDriverProfile(Long userId) {

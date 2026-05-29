@@ -39,8 +39,14 @@ public class SecurityConfig {
                                 new AntPathRequestMatcher("/user/login"),
                                 new AntPathRequestMatcher("/user/register"),
                                 new AntPathRequestMatcher("/error"),
-                                new AntPathRequestMatcher("/ws/realtime/**"),
-                                new AntPathRequestMatcher("/open/integration/**")).permitAll()
+                                new AntPathRequestMatcher("/swagger-ui.html"),
+                                new AntPathRequestMatcher("/swagger-ui/**"),
+                                new AntPathRequestMatcher("/v3/api-docs"),
+                                new AntPathRequestMatcher("/v3/api-docs/**"),
+                                new AntPathRequestMatcher("/v3/api-docs.yaml"),
+                                new AntPathRequestMatcher("/swagger-resources/**"),
+                                new AntPathRequestMatcher("/webjars/**"),
+                                new AntPathRequestMatcher("/ws/realtime/**")).permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(restAuthenticationEntryPoint)

@@ -41,15 +41,5 @@ monitor:
   push-interval-ms: 5000
 
 integration:
-  access-key: garage-integration-key
-  payment:
-    provider: mock
-    order-expire-minutes: 15
   plate:
     auto-out-pay-method: WECHAT
-    model:
-      enabled: false
-      url: http://localhost:9101/api/plate/recognize
-      connect-timeout-ms: 3000
-      read-timeout-ms: 6000
-      filename-fallback: true

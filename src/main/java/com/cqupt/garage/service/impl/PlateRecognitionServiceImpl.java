@@ -64,22 +64,19 @@ public class PlateRecognitionServiceImpl implements PlateRecognitionService {
 
     private ResultVo<Object> analyzeIn(String plateNo, String eventTime, String cameraCode, String preferSpaceNo) {
         GarageVehicle vehicle = findVehicleByPlateFlexible(plateNo);
-        if (vehicle == null) {
-            Map<String, Object> data = buildBaseData(plateNo, "IN", eventTime, cameraCode);
-            data.put("nextStep", "REGISTER_VEHICLE");
-            return ResultVo.fail("未匹配到已登记车辆", data);
-        }
-        String businessPlateNo = canonicalPlateNo(vehicle.getPlateNo(), plateNo);
+        String businessPlateNo = canonicalPlateNo(vehicle == null ? null : vehicle.getPlateNo(), plateNo);
 
-        if ("2".equals(vehicle.getStatus())) {
+        if (vehicle != null && "2".equals(vehicle.getStatus())) {
             return ResultVo.fail("该车辆已停用");
         }
 
-        QueryWrapper<DriverProfile> profileQuery = new QueryWrapper<>();
-        profileQuery.eq("user_id", vehicle.getUserId());
-        profileQuery.eq("status", "1");
-        if (driverProfileMapper.selectCount(profileQuery) <= 0) {
-            return ResultVo.fail("车主未维护有效驾驶档案");
+        if (vehicle != null) {
+            QueryWrapper<DriverProfile> profileQuery = new QueryWrapper<>();
+            profileQuery.eq("user_id", vehicle.getUserId());
+            profileQuery.eq("status", "1");
+            if (driverProfileMapper.selectCount(profileQuery) <= 0) {
+                return ResultVo.fail("车主未维护有效驾驶档案");
+            }
         }
 
         if (findActiveRecordByPlateFlexible(businessPlateNo) != null) {
@@ -88,8 +85,11 @@ public class PlateRecognitionServiceImpl implements PlateRecognitionService {
 
         GarageReservation activeReservation = findActiveReservationByPlateFlexible(businessPlateNo);
         Map<String, Object> data = buildBaseData(businessPlateNo, "IN", eventTime, cameraCode);
-        data.put("vehicleId", vehicle.getId());
-        data.put("userId", vehicle.getUserId());
+        data.put("registeredVehicle", vehicle != null);
+        if (vehicle != null) {
+            data.put("vehicleId", vehicle.getId());
+            data.put("userId", vehicle.getUserId());
+        }
         if (activeReservation != null) {
             data.put("mode", "IN_BY_RESERVATION");
             data.put("reservationId", activeReservation.getId());
@@ -107,6 +107,9 @@ public class PlateRecognitionServiceImpl implements PlateRecognitionService {
         data.put("mode", "IN_DIRECT");
         data.put("suggestedSpaceNo", space.getSpaceNo());
         data.put("nextStep", "ADMIN_CREATE_IN_RECORD");
+        if (vehicle == null) {
+            return ResultVo.ok(data, "识别成功，外来车辆可执行入库");
+        }
         return ResultVo.ok(data, "识别成功，可执行入库");
     }
 
